@@ -1,4 +1,7 @@
 function Header() {
-    return <h1>My Front-End Project</h1>;
+    return <header>
+  <h1>My Frontend Project</h1>
+  <p>QuickCare Healthcare System</p>
+</header>;
 }
 export default Header;
