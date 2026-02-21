@@ -1,6 +1,6 @@
 function Header() {
     return <header>
-  <h1>My Frontend Project</h1>
+  <h1>Quickcare</h1>
   <p>QuickCare Healthcare System</p>
 </header>;
 }

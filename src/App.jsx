@@ -73,7 +73,7 @@ function App() {
   // QUEUE MANAGEMENT STATE
   // -------------------------
   const [queueNumber, setQueueNumber] = useState(15);
-  const [queueStatus, setQueueStatus] = useState("Active"); // Active or Closed
+  const [queueStatus, setQueueStatus] = useState("InxActive"); // Active or Closed
 
   // -------------------------
   // RECENT PATIENTS STATE
@@ -96,6 +96,88 @@ function App() {
     notificationSound: "enabled"
   });
   const [settingsErrors, setSettingsErrors] = useState({});
+
+  // -------------------------
+  // DEVICES & SENSORS STATE
+  // -------------------------
+  const [devices, setDevices] = useState([
+    { id: 1, name: "Temperature Sensor A", type: "Temperature", location: "Room 1", status: "online", lastUpdate: "2:30 PM" },
+    { id: 2, name: "Blood Pressure Monitor", type: "BP Monitor", location: "Room 2", status: "online", lastUpdate: "2:28 PM" },
+    { id: 3, name: "Pulse Oximeter", type: "Oxygen", location: "Room 3", status: "offline", lastUpdate: "1:45 PM" },
+    { id: 4, name: "Weight Scale", type: "Scale", location: "Waiting Area", status: "online", lastUpdate: "2:25 PM" }
+  ]);
+
+  // -------------------------
+  // USER MANAGEMENT STATE
+  // -------------------------
+  const [pendingUsers, setPendingUsers] = useState([
+    { id: 1, name: "Dr. Sarah Johnson", email: "sarah.johnson@clinic.com", role: "Doctor", requestedAt: "2:15 PM", status: "pending" },
+    { id: 2, name: "Nurse Maria Gonzales", email: "maria.gonzales@clinic.com", role: "Nurse", requestedAt: "1:50 PM", status: "pending" },
+    { id: 3, name: "Admin Tech Support", email: "tech.support@clinic.com", role: "Admin", requestedAt: "1:20 PM", status: "pending" }
+  ]);
+  const [approvedUsers, setApprovedUsers] = useState([
+    { id: 101, name: currentUser?.name || "Admin User", email: "admin@clinic.com", role: "Admin", approvedAt: "Today" }
+  ]);
+
+  // -------------------------
+  // THRESHOLDS & ALERTS STATE
+  // -------------------------
+  const [thresholds, setThresholds] = useState({
+    temperature: { min: 36, max: 38 },
+    pulseRate: { min: 60, max: 100 },
+    bloodPressureSystolic: { min: 90, max: 140 },
+    bloodPressureDiastolic: { min: 60, max: 90 },
+    weight: { min: 40, max: 150 },
+    deviceUptimeWarning: 95 // Alert if device uptime falls below this percentage
+  });
+
+  const [alertHistory, setAlertHistory] = useState([
+    { id: 1, type: "vital", severity: "warning", message: "High pulse rate detected (115 bpm)", timestamp: "2:30 PM", resolved: false },
+    { id: 2, type: "device", severity: "info", message: "Pulse Oximeter offline", timestamp: "1:45 PM", resolved: true },
+    { id: 3, type: "vital", severity: "normal", message: "Temperature reading normal", timestamp: "12:10 PM", resolved: true }
+  ]);
+
+  // -------------------------
+  // VITAL READINGS HISTORY (FOR GRAPHS)
+  // -------------------------
+  const [vitalReadingsHistory, setVitalReadingsHistory] = useState({
+    daily: [
+      { time: "08:00", temp: 36.5, pulse: 68, bp: "118/76" },
+      { time: "10:00", temp: 36.8, pulse: 72, bp: "120/80" },
+      { time: "12:00", temp: 37.2, pulse: 75, bp: "122/82" },
+      { time: "14:00", temp: 37.0, pulse: 70, bp: "119/79" },
+      { time: "16:00", temp: 36.9, pulse: 73, bp: "121/80" }
+    ],
+    weekly: [
+      { day: "Mon", avgTemp: 36.8, avgPulse: 72, avgBP: "120/80" },
+      { day: "Tue", avgTemp: 36.9, avgPulse: 73, avgBP: "121/81" },
+      { day: "Wed", avgTemp: 37.0, avgPulse: 75, avgBP: "122/82" },
+      { day: "Thu", avgTemp: 36.7, avgPulse: 70, avgBP: "119/78" },
+      { day: "Fri", avgTemp: 36.8, avgPulse: 71, avgBP: "120/79" },
+      { day: "Sat", avgTemp: 36.6, avgPulse: 69, avgBP: "118/77" },
+      { day: "Sun", avgTemp: 36.9, avgPulse: 72, avgBP: "121/80" }
+    ],
+    monthly: [
+      { week: "Week 1", avgTemp: 36.8, avgPulse: 72, avgBP: "120/80" },
+      { week: "Week 2", avgTemp: 36.9, avgPulse: 73, avgBP: "121/81" },
+      { week: "Week 3", avgTemp: 37.0, avgPulse: 74, avgBP: "122/82" },
+      { week: "Week 4", avgTemp: 36.8, avgPulse: 72, avgBP: "120/80" }
+    ]
+  });
+
+  // -------------------------
+  // DEVICE UPTIME TRACKING
+  // -------------------------
+  const [deviceUptimeMetrics, setDeviceUptimeMetrics] = useState({
+    daily: { "Temperature Sensor A": 99.8, "Blood Pressure Monitor": 99.5, "Pulse Oximeter": 85.2, "Weight Scale": 100 },
+    weekly: { "Temperature Sensor A": 98.5, "Blood Pressure Monitor": 96.8, "Pulse Oximeter": 80.3, "Weight Scale": 99.2 },
+    monthly: { "Temperature Sensor A": 97.2, "Blood Pressure Monitor": 95.5, "Pulse Oximeter": 78.6, "Weight Scale": 98.8 }
+  });
+
+  // -------------------------
+  // REPORT PERIOD STATE
+  // -------------------------
+  const [reportPeriod, setReportPeriod] = useState("daily"); // daily, weekly, monthly
 
   // ========================
   // FORM VALIDATION FUNCTIONS
@@ -428,6 +510,83 @@ function App() {
   };
 
   // ========================
+  // USER MANAGEMENT HANDLERS
+  // ========================
+
+  // Accept pending user
+  const handleAcceptUser = (userId) => {
+    const user = pendingUsers.find(u => u.id === userId);
+    if (user) {
+      setApprovedUsers(prev => [...prev, { ...user, approvedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), status: "approved" }]);
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      addNotification(`User ${user.name} has been approved!`);
+    }
+  };
+
+  // Decline pending user
+  const handleDeclineUser = (userId) => {
+    const user = pendingUsers.find(u => u.id === userId);
+    if (user) {
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      addNotification(`User ${user.name} has been declined`);
+    }
+  };
+
+  // Remove approved user
+  const handleRemoveApprovedUser = (userId) => {
+    const user = approvedUsers.find(u => u.id === userId);
+    if (user) {
+      setApprovedUsers(prev => prev.filter(u => u.id !== userId));
+      addNotification(`User ${user.name} has been removed`);
+    }
+  };
+
+  // ========================
+  // THRESHOLD & ALERT HANDLERS
+  // ========================
+
+  // Update thresholds
+  const handleUpdateThreshold = (field, minOrMax, value) => {
+    setThresholds(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        [minOrMax]: parseFloat(value)
+      }
+    }));
+  };
+
+  // Save thresholds
+  const handleSaveThresholds = () => {
+    addNotification("Thresholds updated successfully!");
+  };
+
+  // Check vital against threshold and create alert
+  const checkVitalThreshold = (vital, value, threshold) => {
+    if (value < threshold.min) {
+      return { exceeded: true, type: "low", severity: "warning" };
+    }
+    if (value > threshold.max) {
+      return { exceeded: true, type: "high", severity: "warning" };
+    }
+    return { exceeded: false, type: "normal", severity: "normal" };
+  };
+
+  // Resolve alert
+  const handleResolveAlert = (alertId) => {
+    setAlertHistory(prev => prev.map(alert =>
+      alert.id === alertId ? { ...alert, resolved: true } : alert
+    ));
+    addNotification("Alert resolved");
+  };
+
+  // Clear all alerts
+  const handleClearAllAlerts = () => {
+    setAlertHistory(prev => prev.map(alert => ({ ...alert, resolved: true })));
+    addNotification("All alerts marked as resolved");
+  };
+
+  // ========================
   // NAVIGATION HANDLERS
   // ========================
 
@@ -604,6 +763,18 @@ function App() {
                 onClick={() => handleNavigate("reports")}
               >
                 Reports
+              </button>
+              <button 
+                className={`nav-link ${currentPage === "devices" ? "active" : ""}`}
+                onClick={() => handleNavigate("devices")}
+              >
+                Devices
+              </button>
+              <button 
+                className={`nav-link ${currentPage === "users" ? "active" : ""}`}
+                onClick={() => handleNavigate("users")}
+              >
+                Users
               </button>
               <button 
                 className={`nav-link ${currentPage === "settings" ? "active" : ""}`}
@@ -1066,6 +1237,149 @@ function App() {
                 </section>
 
                 <section className="card">
+                  <h2>Vital Sign Thresholds</h2>
+                  <form onSubmit={handleSaveThresholds}>
+                    <p className="section-description">Set alert thresholds for vital sign readings</p>
+                    
+                    <div className="threshold-grid">
+                      <div className="threshold-group">
+                        <h3>Temperature (°C)</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input">
+                            <label>Min</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={thresholds.temperature.min}
+                              onChange={(e) => handleUpdateThreshold("temperature", "min", e.target.value)}
+                            />
+                          </div>
+                          <div className="threshold-input">
+                            <label>Max</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={thresholds.temperature.max}
+                              onChange={(e) => handleUpdateThreshold("temperature", "max", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="threshold-group">
+                        <h3>Pulse Rate (bpm)</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input">
+                            <label>Min</label>
+                            <input 
+                              type="number"
+                              value={thresholds.pulseRate.min}
+                              onChange={(e) => handleUpdateThreshold("pulseRate", "min", e.target.value)}
+                            />
+                          </div>
+                          <div className="threshold-input">
+                            <label>Max</label>
+                            <input 
+                              type="number"
+                              value={thresholds.pulseRate.max}
+                              onChange={(e) => handleUpdateThreshold("pulseRate", "max", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="threshold-group">
+                        <h3>BP Systolic</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input">
+                            <label>Min</label>
+                            <input 
+                              type="number"
+                              value={thresholds.bloodPressureSystolic.min}
+                              onChange={(e) => handleUpdateThreshold("bloodPressureSystolic", "min", e.target.value)}
+                            />
+                          </div>
+                          <div className="threshold-input">
+                            <label>Max</label>
+                            <input 
+                              type="number"
+                              value={thresholds.bloodPressureSystolic.max}
+                              onChange={(e) => handleUpdateThreshold("bloodPressureSystolic", "max", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="threshold-group">
+                        <h3>BP Diastolic</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input">
+                            <label>Min</label>
+                            <input 
+                              type="number"
+                              value={thresholds.bloodPressureDiastolic.min}
+                              onChange={(e) => handleUpdateThreshold("bloodPressureDiastolic", "min", e.target.value)}
+                            />
+                          </div>
+                          <div className="threshold-input">
+                            <label>Max</label>
+                            <input 
+                              type="number"
+                              value={thresholds.bloodPressureDiastolic.max}
+                              onChange={(e) => handleUpdateThreshold("bloodPressureDiastolic", "max", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="threshold-group">
+                        <h3>Weight (kg)</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input">
+                            <label>Min</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={thresholds.weight.min}
+                              onChange={(e) => handleUpdateThreshold("weight", "min", e.target.value)}
+                            />
+                          </div>
+                          <div className="threshold-input">
+                            <label>Max</label>
+                            <input 
+                              type="number"
+                              step="0.1"
+                              value={thresholds.weight.max}
+                              onChange={(e) => handleUpdateThreshold("weight", "max", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="threshold-group">
+                        <h3>Device Uptime Alert</h3>
+                        <div className="threshold-inputs">
+                          <div className="threshold-input full-width">
+                            <label>Alert if below (%)</label>
+                            <input 
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={thresholds.deviceUptimeWarning}
+                              onChange={(e) => setThresholds(prev => ({ ...prev, deviceUptimeWarning: parseFloat(e.target.value) }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button type="submit" className="btn-submit primary">
+                      Save Thresholds
+                    </button>
+                  </form>
+                </section>
+
+                <section className="card">
                   <h2>Current Configuration</h2>
                   <div className="settings-display">
                     <div className="setting-display-item">
@@ -1098,75 +1412,409 @@ function App() {
             {/* ============================== */}
             {currentPage === "reports" && (
               <div className="page-content">
+                {/* ALERTS SECTION */}
                 <section className="card card-full">
-                  <h2>System Reports & Analytics</h2>
-                  <div className="analytics-grid">
-                    <div className="analytics-card">
-                      <h3>Total Patients Registered</h3>
-                      <div className="analytics-value">{recentPatients.length}</div>
-                      <p className="analytics-subtitle">This session</p>
-                    </div>
-                    <div className="analytics-card">
-                      <h3>Current Queue Position</h3>
-                      <div className="analytics-value">{queueNumber}</div>
-                      <p className="analytics-subtitle">Next: #{queueNumber + 1}</p>
-                    </div>
-                    <div className="analytics-card">
-                      <h3>Queue Capacity</h3>
-                      <div className="analytics-value">{Math.round((queueNumber / systemSettings.maxQueueSize) * 100)}%</div>
-                      <p className="analytics-subtitle">of {systemSettings.maxQueueSize}</p>
-                    </div>
-                    <div className={`analytics-card status-${vitals.status.toLowerCase()}`}>
-                      <h3>Last Vitals Status</h3>
-                      <div className="analytics-value">{vitals.status}</div>
-                      <p className="analytics-subtitle">Patient health indicator</p>
-                    </div>
+                  <div className="alerts-header">
+                    <h2>⚠️ Alerts & Notifications</h2>
+                    <button onClick={handleClearAllAlerts} className="btn-secondary">Clear All</button>
                   </div>
-                </section>
-
-                <section className="card">
-                  <h2>Patient Session Summary</h2>
-                  <div className="summary-table">
-                    <div className="summary-row header">
-                      <div className="summary-col">Patient Name</div>
-                      <div className="summary-col">Registration Time</div>
-                      <div className="summary-col">Status</div>
-                    </div>
-                    {recentPatients.map((patient) => (
-                      <div key={patient.id} className="summary-row">
-                        <div className="summary-col">{patient.name}</div>
-                        <div className="summary-col">{patient.registeredAt}</div>
-                        <div className="summary-col"><span className="badge">Registered</span></div>
-                      </div>
-                    ))}
-                    {recentPatients.length === 0 && (
-                      <div className="summary-row empty">
-                        <div className="summary-col" style={{gridColumn: "1 / -1"}}>No patients registered yet</div>
-                      </div>
+                  <div className="alerts-list">
+                    {alertHistory.length > 0 ? (
+                      alertHistory.map((alert) => (
+                        <div key={alert.id} className={`alert-item severity-${alert.severity} ${alert.resolved ? 'resolved' : ''}`}>
+                          <div className="alert-content">
+                            <span className={`alert-type ${alert.type}`}>{alert.type.toUpperCase()}</span>
+                            <span className="alert-message">{alert.message}</span>
+                            <span className="alert-time">{alert.timestamp}</span>
+                          </div>
+                          {!alert.resolved && (
+                            <button 
+                              onClick={() => handleResolveAlert(alert.id)}
+                              className="btn-resolve"
+                            >
+                              Resolve
+                            </button>
+                          )}
+                          {alert.resolved && <span className="alert-resolved-badge">✓ Resolved</span>}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="empty-state">No alerts</p>
                     )}
                   </div>
                 </section>
 
+                {/* REPORT PERIOD SELECTOR */}
                 <section className="card">
-                  <h2>System Status Overview</h2>
-                  <div className="status-overview">
-                    <div className="status-row">
-                      <span className="status-name">Queue System:</span>
-                      <span className={`status-badge ${queueStatus.toLowerCase()}`}>{queueStatus}</span>
+                  <h2>Vital Signs Report</h2>
+                  <div className="report-period-selector">
+                    <button 
+                      onClick={() => setReportPeriod("daily")}
+                      className={`period-btn ${reportPeriod === "daily" ? "active" : ""}`}
+                    >
+                      📅 Daily
+                    </button>
+                    <button 
+                      onClick={() => setReportPeriod("weekly")}
+                      className={`period-btn ${reportPeriod === "weekly" ? "active" : ""}`}
+                    >
+                      📊 Weekly
+                    </button>
+                    <button 
+                      onClick={() => setReportPeriod("monthly")}
+                      className={`period-btn ${reportPeriod === "monthly" ? "active" : ""}`}
+                    >
+                      📈 Monthly
+                    </button>
+                  </div>
+
+                  {reportPeriod === "daily" && (
+                    <div className="report-content">
+                      <div className="report-grid">
+                        <div className="chart-container">
+                          <h3>Temperature Trend</h3>
+                          <div className="simple-chart temperature">
+                            {vitalReadingsHistory.daily.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.temp / 40) * 200}px`}} title={`${reading.temp}°C @ ${reading.time}`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.daily.map((reading, idx) => (
+                              <span key={idx}>{reading.time}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="chart-container">
+                          <h3>Pulse Rate Trend</h3>
+                          <div className="simple-chart pulse">
+                            {vitalReadingsHistory.daily.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.pulse / 120) * 200}px`}} title={`${reading.pulse} bpm @ ${reading.time}`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.daily.map((reading, idx) => (
+                              <span key={idx}>{reading.time}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="vital-stats">
+                        <h3>Daily Vitals Summary</h3>
+                        <div className="stats-grid">
+                          {vitalReadingsHistory.daily.map((reading, idx) => (
+                            <div key={idx} className="stat-item">
+                              <div className="stat-time">{reading.time}</div>
+                              <div className="stat-details">
+                                <div>🌡️ {reading.temp}°C</div>
+                                <div>❤️ {reading.pulse} bpm</div>
+                                <div>🩺 {reading.bp}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <div className="status-row">
-                      <span className="status-name">Last Vitals Reading:</span>
-                      <span className={`status-badge ${vitals.status.toLowerCase()}`}>{vitals.status}</span>
+                  )}
+
+                  {reportPeriod === "weekly" && (
+                    <div className="report-content">
+                      <div className="report-grid">
+                        <div className="chart-container">
+                          <h3>Weekly Avg Temperature</h3>
+                          <div className="simple-chart temperature">
+                            {vitalReadingsHistory.weekly.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.avgTemp / 40) * 200}px`}} title={`${reading.avgTemp}°C`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.weekly.map((reading, idx) => (
+                              <span key={idx}>{reading.day}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="chart-container">
+                          <h3>Weekly Avg Pulse Rate</h3>
+                          <div className="simple-chart pulse">
+                            {vitalReadingsHistory.weekly.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.avgPulse / 120) * 200}px`}} title={`${reading.avgPulse} bpm`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.weekly.map((reading, idx) => (
+                              <span key={idx}>{reading.day}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="status-row">
-                      <span className="status-name">Clinic Name:</span>
-                      <span className="status-value">{systemSettings.clinicName}</span>
+                  )}
+
+                  {reportPeriod === "monthly" && (
+                    <div className="report-content">
+                      <div className="report-grid">
+                        <div className="chart-container">
+                          <h3>Monthly Avg Temperature</h3>
+                          <div className="simple-chart temperature">
+                            {vitalReadingsHistory.monthly.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.avgTemp / 40) * 200}px`}} title={`${reading.avgTemp}°C`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.monthly.map((reading, idx) => (
+                              <span key={idx}>{reading.week}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="chart-container">
+                          <h3>Monthly Avg Pulse Rate</h3>
+                          <div className="simple-chart pulse">
+                            {vitalReadingsHistory.monthly.map((reading, idx) => (
+                              <div key={idx} className="chart-bar" style={{height: `${(reading.avgPulse / 120) * 200}px`}} title={`${reading.avgPulse} bpm`}></div>
+                            ))}
+                          </div>
+                          <div className="chart-labels">
+                            {vitalReadingsHistory.monthly.map((reading, idx) => (
+                              <span key={idx}>{reading.week}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="status-row">
-                      <span className="status-name">Operating Hours:</span>
-                      <span className="status-value">{systemSettings.workingHours}</span>
+                  )}
+                </section>
+
+                {/* DEVICE UPTIME SECTION */}
+                <section className="card">
+                  <h2>Device Uptime Report</h2>
+                  <div className="report-period-selector">
+                    <button 
+                      onClick={() => setReportPeriod("daily")}
+                      className={`period-btn ${reportPeriod === "daily" ? "active" : ""}`}
+                    >
+                      📅 Daily
+                    </button>
+                    <button 
+                      onClick={() => setReportPeriod("weekly")}
+                      className={`period-btn ${reportPeriod === "weekly" ? "active" : ""}`}
+                    >
+                      📊 Weekly
+                    </button>
+                    <button 
+                      onClick={() => setReportPeriod("monthly")}
+                      className={`period-btn ${reportPeriod === "monthly" ? "active" : ""}`}
+                    >
+                      📈 Monthly
+                    </button>
+                  </div>
+
+                  <div className="uptime-metrics">
+                    {Object.entries(
+                      reportPeriod === "daily" ? deviceUptimeMetrics.daily :
+                      reportPeriod === "weekly" ? deviceUptimeMetrics.weekly :
+                      deviceUptimeMetrics.monthly
+                    ).map(([device, uptime]) => (
+                      <div key={device} className="uptime-item">
+                        <div className="uptime-info">
+                          <h3>{device}</h3>
+                          <div className="uptime-bar-container">
+                            <div className="uptime-bar">
+                              <div 
+                                className={`uptime-fill ${uptime >= thresholds.deviceUptimeWarning ? 'good' : 'warning'}`}
+                                style={{width: `${uptime}%`}}
+                              ></div>
+                            </div>
+                            <span className="uptime-percentage">{uptime}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* QUICK STATS */}
+                <section className="card card-full">
+                  <h2>Overview Statistics</h2>
+                  <div className="analytics-grid">
+                    <div className="analytics-card">
+                      <h3>Total Patients</h3>
+                      <div className="analytics-value">{recentPatients.length}</div>
+                      <p className="analytics-subtitle">Registered this session</p>
+                    </div>
+                    <div className="analytics-card">
+                      <h3>Active Alerts</h3>
+                      <div className="analytics-value">{alertHistory.filter(a => !a.resolved).length}</div>
+                      <p className="analytics-subtitle">Requiring attention</p>
+                    </div>
+                    <div className="analytics-card">
+                      <h3>Devices Online</h3>
+                      <div className="analytics-value">{devices.filter(d => d.status === "online").length}/{devices.length}</div>
+                      <p className="analytics-subtitle">Connected sensors</p>
+                    </div>
+                    <div className="analytics-card">
+                      <h3>Queue Status</h3>
+                      <div className={`analytics-value ${queueStatus.toLowerCase()}`}>{queueStatus}</div>
+                      <p className="analytics-subtitle">System operational</p>
                     </div>
                   </div>
+                </section>
+              </div>
+            )}
+
+            {/* ============================== */}
+            {/* PAGE: DEVICES & SENSORS */}
+            {/* ============================== */}
+            {currentPage === "devices" && (
+              <div className="page-content">
+                <section className="card card-full">
+                  <h2>Device & Sensor Management</h2>
+                  <div className="devices-summary">
+                    <div className="summary-stat">
+                      <span className="stat-label">Total Devices</span>
+                      <span className="stat-value">{devices.length}</span>
+                    </div>
+                    <div className="summary-stat">
+                      <span className="stat-label">Online</span>
+                      <span className="stat-value online">{devices.filter(d => d.status === "online").length}</span>
+                    </div>
+                    <div className="summary-stat">
+                      <span className="stat-label">Offline</span>
+                      <span className="stat-value offline">{devices.filter(d => d.status === "offline").length}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h2>Connected Devices</h2>
+                  {devices.length > 0 ? (
+                    <div className="devices-list">
+                      {devices.map((device) => (
+                        <div key={device.id} className={`device-item status-${device.status}`}>
+                          <div className="device-header">
+                            <div className="device-info">
+                              <h3 className="device-name">{device.name}</h3>
+                              <p className="device-type">{device.type} | Location: {device.location}</p>
+                            </div>
+                            <div className={`device-status-badge ${device.status}`}>
+                              <span className="status-dot"></span>
+                              {device.status.toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="device-footer">
+                            <p className="device-update">Last updated: {device.lastUpdate}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">No devices connected</p>
+                  )}
+                </section>
+
+                <section className="card">
+                  <h2>Device Status Legend</h2>
+                  <div className="legend">
+                    <div className="legend-item">
+                      <span className="legend-badge online">●</span>
+                      <span>Device is online and functioning properly</span>
+                    </div>
+                    <div className="legend-item">
+                      <span className="legend-badge offline">●</span>
+                      <span>Device is offline or not responding</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* ============================== */}
+            {/* PAGE: USER MANAGEMENT */}
+            {/* ============================== */}
+            {currentPage === "users" && (
+              <div className="page-content">
+                <section className="card card-full">
+                  <h2>User Management System</h2>
+                  <div className="users-summary">
+                    <div className="summary-stat">
+                      <span className="stat-label">Pending Requests</span>
+                      <span className="stat-value pending">{pendingUsers.length}</span>
+                    </div>
+                    <div className="summary-stat">
+                      <span className="stat-label">Approved Users</span>
+                      <span className="stat-value approved">{approvedUsers.length}</span>
+                    </div>
+                    <div className="summary-stat">
+                      <span className="stat-label">Total Users</span>
+                      <span className="stat-value">{pendingUsers.length + approvedUsers.length}</span>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Pending User Requests */}
+                <section className="card">
+                  <h2>Pending User Requests</h2>
+                  {pendingUsers.length > 0 ? (
+                    <div className="users-request-list">
+                      {pendingUsers.map((user) => (
+                        <div key={user.id} className="user-request-item">
+                          <div className="user-request-info">
+                            <h3 className="user-name">{user.name}</h3>
+                            <p className="user-email">{user.email}</p>
+                            <p className="user-meta"><strong>Role:</strong> {user.role} | <strong>Requested:</strong> {user.requestedAt}</p>
+                          </div>
+                          <div className="user-request-actions">
+                            <button 
+                              onClick={() => handleAcceptUser(user.id)}
+                              className="btn-accept"
+                            >
+                              ✓ Accept
+                            </button>
+                            <button 
+                              onClick={() => handleDeclineUser(user.id)}
+                              className="btn-decline"
+                            >
+                              ✗ Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">No pending user requests</p>
+                  )}
+                </section>
+
+                {/* Approved Users */}
+                <section className="card">
+                  <h2>Approved Users</h2>
+                  {approvedUsers.length > 0 ? (
+                    <div className="users-approved-list">
+                      {approvedUsers.map((user) => (
+                        <div key={user.id} className="user-approved-item">
+                          <div className="user-approved-info">
+                            <h3 className="user-name">{user.name}</h3>
+                            <p className="user-email">{user.email}</p>
+                            <p className="user-meta"><strong>Role:</strong> {user.role} | <strong>Approved:</strong> {user.approvedAt}</p>
+                          </div>
+                          <div className="user-approved-status">
+                            <span className="status-badge approved">✓ Approved</span>
+                            {user.id !== 101 && (
+                              <button 
+                                onClick={() => handleRemoveApprovedUser(user.id)}
+                                className="btn-remove-user"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">No approved users</p>
+                  )}
                 </section>
               </div>
             )}
