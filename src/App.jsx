@@ -133,10 +133,10 @@ function App() {
     return path.replace("/", "");
   };
 
-  const currentPage = getCurrentPage();
+const currentPage = getCurrentPage();
 
   return (
-    <>
+    <div className={settings.systemSettings.darkMode ? "dark-mode" : ""}>
       <Header />
 
       {!auth.isAuthenticated ? (
@@ -320,7 +320,7 @@ function App() {
       )}
 
       <Footer />
-    </>
+    </div>
   );
 }
 
